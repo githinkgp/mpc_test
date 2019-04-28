@@ -249,7 +249,6 @@ class configuration:
             rhs_fcn = Function('rhs_fcn',[self.model.x,vertcat(self.model.u,self.model.p)],[rhs_unscaled])
             x_next = rhs_fcn(self.simulator.x0_sim,vertcat(u_mpc,p_real))
             self.simulator.xf_sim = NP.squeeze(NP.array(x_next))
-            print "x: ", self.simulator.xf_sim
         else:
             result  = self.simulator.simulator(x0 = self.simulator.x0_sim, p = vertcat(u_mpc,p_real,tv_p_real))
             self.simulator.xf_sim = NP.squeeze(result['xf'])
@@ -271,7 +270,6 @@ class configuration:
 
     def prepare_next_iter(self):
         observed_states = self.observer.observed_states
-        print "obs states: ", observed_states
         X_offset = self.optimizer.nlp_dict_out['X_offset']
         nx = self.model.x.size(1)
         nu = self.model.u.size(1)

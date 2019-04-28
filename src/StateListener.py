@@ -1,5 +1,6 @@
 # Gazebo bot state Listener Class
 import rospy
+import tf
 import numpy as np
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.msg import ModelStates
@@ -11,7 +12,8 @@ class StateListener:
         # init data
         self.topic = topic
         self.tStamp = 0.0
-        self.State = [[],[]]
+        self.Pose = [0,0,0]
+        self.Twist = [0,0]
 
         # subscriber to the RPLIDAR
         #print 'initializing RPLIDAR subscribers...'
@@ -21,15 +23,28 @@ class StateListener:
 
     # callback to LaserScan
     def callback(self,msg):
-        self.State = [[],[]]
+        #self.Pose = [0,0,0]
+        #self.Twist = [0,0,0]
         names=msg.name
         pose=msg.pose
         twist=msg.twist
+
         idx=0
         for n in names:
             if n=="mybot":
-                self.State[0].append(pose[idx])
-                self.State[1].append(twist[idx])
+                #self.State[0].append(pose[idx])
+                #self.State[1].append(twist[idx])
+                (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose[idx].orientation.x, msg.pose[idx].orientation.y, msg.pose[idx].orientation.z, msg.pose[idx].orientation.w])
+                self.Pose[0] = pose[idx].position.x
+                self.Pose[1] = pose[idx].position.y
+                if y>0:
+                    y=y-np.pi
+                else:
+                    y=y+np.pi
+                self.Pose[2] = y
+                self.Twist[0] = np.sqrt((twist[idx].linear.x)**2 + (twist[idx].linear.y)**2)
+                self.Twist[1] = twist[idx].angular.z
+                #print "yaw:",y
             idx+=1
     
     # end callback

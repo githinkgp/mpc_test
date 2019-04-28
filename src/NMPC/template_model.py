@@ -24,17 +24,14 @@
 from casadi import *
 import numpy as NP
 import core_do_mpc
-def model():
+#import math
+def model(waypoint, obstacles,pose,twist):
 
     """
     --------------------------------------------------------------------------
     template_model: define the non-uncertain parameters
     --------------------------------------------------------------------------
     """
-
-    
-
-
     """
     --------------------------------------------------------------------------
     template_model: define uncertain parameters, states and controls as symbols
@@ -106,26 +103,27 @@ def model():
     --------------------------------------------------------------------------
     """
     # Initial condition for the states
-    x_0 = 0.0 # This is the initial concentration inside the tank [mol/l]
-    y_0 = 0.0 # This is the controlled variable [mol/l]
-    theta_0 = 0.0 #[C]
+    print "pose",pose
+    x_0 = pose[0] # This is the initial concentration inside the tank [mol/l]
+    y_0 = pose[1] # This is the controlled variable [mol/l]
+    theta_0 = pose[2] #[C]
 #    T_K_0 = 130.0 #[C]
     x0 = NP.array([x_0, y_0, theta_0])
 
     # Bounds on the states. Use "inf" for unconstrained states
-    x_lb = 0.0;			x_ub = 100.0
-    y_lb = 0.0;			y_ub = 100.0
-    theta_lb = 0.0;			theta_ub = 6.28
+    x_lb = -100;			x_ub = 100.0
+    y_lb = -100;			y_ub = 100.0
+    theta_lb = -3.14;			theta_ub = 3.14
     #T_K_lb = 50.0;			T_K_ub = 180
     X_lb = NP.array([x_lb, y_lb, theta_lb])
     X_ub = NP.array([x_ub, y_ub, theta_ub])
 
     # Bounds on the control inputs. Use "inf" for unconstrained inputs
-    u_lb = 0.0;                 u_ub = 5.0;
+    u_lb = 0.0;                 u_ub = 1.0;
     w_lb = -1.0;         w_ub = 1.0;
     U_lb = NP.array([u_lb, w_lb])
     U_ub = NP.array([u_ub, w_ub])
-    u0 = NP.array([0.0,0.0])
+    u0 = NP.array(twist)
 
     # Scaling factors for the states and control inputs. Important if the system is ill-conditioned
     x_scaling = NP.array([1.0, 1.0, 1.0])
@@ -156,18 +154,22 @@ def model():
     template_model: cost function
     --------------------------------------------------------------------------
     """
-    
-    lambda_Y=NP.identity(3)
-    Y_ref=[80, 80, 1.57]
-    rx=15
-    ry=10
-    lam=1e7
+    Y_ref=waypoint
+    rx=obstacles.a
+    ry=obstacles.b
+    phi = atan(obstacles.m)
+    lam=1e5
     gamma=1
-    xo=[60,40]
+    xo=obstacles.centroid
     # Define the cost function
     # Lagrange term
     #lterm =  1e4*((C_b - 0.9)**2 + (C_a - 1.1)**2)
-    lterm = 10*(x-Y_ref[0])**2+10*(y-Y_ref[1])**2+(theta-Y_ref[2])**2 + (lam)*exp(-(gamma+((xo[0]-x)**2)/(rx**2)+((xo[1]-y)**2)/(ry**2)))
+    #lterm = 10*(x-Y_ref[0])**2+10*(y-Y_ref[1])**2+(theta-Y_ref[2])**2 + (lam)*exp(-(gamma+((xo[0]-x)**2)/(rx**2)+((xo[1]-y)**2)/(ry**2)))
+
+    lterm = 10*(x-Y_ref[0])**2 + \
+            10*(y-Y_ref[1])**2 + \
+            (theta-Y_ref[2])**2 #+ \
+            #(lam)/((gamma+(( (xo[0]-x)*cos(phi) + (xo[1]-y)*sin(phi) )**2)/(rx**2) + (( (xo[1]-x)*sin(phi) - (xo[1]-y)*cos(phi) )**2)/(ry**2) ))
     #lterm =  - C_b
     # Mayer term
 #    mterm =  1e4*((C_b - 0.9)**2 + (C_a - 1.1)**2)
