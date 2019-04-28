@@ -81,21 +81,28 @@ class doMPC:
         ----------------------------
         """
 
-        xo=obstacles.centroid
-        rx=obstacles.a
-        ry=obstacles.b
-        #print "xo",xo,"rx,ry",rx,ry
         
-        phi = atan(obstacles.m)
 
         x=pose
         Y_ref=waypoint
-        lam=1e5
+        lam=1e6
         gamma=1
 
         #V=lam/((gamma+((xo[0]-x[0])**2)/(rx**2)+((xo[1]-x[1])**2)/(ry**2)))
-        #V=lam/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
-        #print "cost", V
+        if len(obstacles.a):
+            xo=obstacles.centroid[0]
+            rx=obstacles.a[0]
+            ry=obstacles.b[0]
+            #print "xo",xo,"rx,ry",rx,ry
+
+            R = [[cos(x[2]), -sin(x[2])],[sin(x[2]),cos(x[2])]]
+
+            xo = np.matmul(R,xo)
+            
+            phi = atan(obstacles.m[0])
+            V=lam/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
+            print "cost", V
+
         print "x cost:",10*(x[0]-Y_ref[0])**2,"y cost:",10*(x[1]-Y_ref[1])**2,"theta cost:", (x[2]-Y_ref[2])**2
         #a1=ax.scatter(x[0],x[1])
         #a2=ax.arrow(x[0],x[1],3*math.cos(x[2]),3*math.sin(x[2]), head_width=0.08, head_length=0.00002)
