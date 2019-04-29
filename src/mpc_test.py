@@ -38,7 +38,7 @@ class clusters:
             for i in xrange(count-1):
                 dist=rangeData[i][1]
                 theta=rangeData[i][0]
-                
+
                 self.clusterXY[i,0]=dist*cos(radians(180-fabs(theta)))
                 self.clusterXY[i,1]=(dist*sin(radians(theta)))
                 
@@ -51,19 +51,37 @@ class clusters:
                 t2=rangeData[i+1][0]
                 dist=sqrt((d1*sin(radians(t1))-d2*sin(radians(t2)))**2 + (d1*cos(radians(t1))-d2*cos(radians(t2)))**2)
 
+
+                #print self.clusterIdx
                 if dist >0.5:
                     self.clusterIdx[self.clusterCount].append(i)
-                    self.clusterCount+=1
-                    clusterStart = 1
+                    #print rangeData[self.clusterIdx[self.clusterCount][0]][0] , rangeData[i+1][0]
+                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <150 and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <150:
+                        #print "remove", self.clusterCount
+                        self.clusterIdx.pop(self.clusterCount)
+                        clusterStart = 1
+                    else:
+                        #print "here"
+                        clusterStart = 1
+                        self.clusterCount+=1
+                    
                 elif i==count-2:
+                    #print self.clusterIdx[self.clusterCount][0], i+1
+                    #print rangeData[self.clusterIdx[self.clusterCount][0]][0] , rangeData[i+1][0]
                     self.clusterIdx[self.clusterCount].append(i+1)
-                    self.clusterCount+=1
-                    clusterStart = 1
-                    dist=rangeData[i+1][1]
-                    theta=rangeData[i+1][0]
-                    self.clusterXY[i+1,0]=dist*cos(radians(180-fabs(theta)))
-                    self.clusterXY[i+1,1]=(dist*sin(radians(theta)))
-            #print self.clusterIdx[1,0]
+
+                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <150 and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <150:
+                        #print "remove", self.clusterCount
+                        self.clusterIdx.pop(self.clusterCount)
+                        clusterStart = 1
+                    else:
+                        clusterStart = 1
+                        self.clusterCount+=1
+                        dist=rangeData[i+1][1]
+                        theta=rangeData[i+1][0]
+                        self.clusterXY[i+1,0]=dist*cos(radians(180-fabs(theta)))
+                        self.clusterXY[i+1,1]=(dist*sin(radians(theta)))
+            #print self.clusterIdx
             #print "clusterXY",self.clusterXY
 class EnclosingEllipse:
     def __init__(self,cluster):
@@ -110,7 +128,7 @@ class Waypoint:
 def mpc_main():
     # initialize
     RosNodeName = 'mpc_test'
-#    print 'initializing {}...'.format(RosNodeName)
+    #print 'initializing {}...'.format(RosNodeName)
     rospy.init_node(RosNodeName,anonymous=True)
     
     lidar_listener = LidarListener('/laser/scan')
