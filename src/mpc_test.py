@@ -10,6 +10,8 @@ import rospy
 import matplotlib.pyplot as plt
 from std_msgs.msg import Int32
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Vector3
+
 from scipy.spatial import ConvexHull
 import matplotlib.patches as patches
 # from sensor_msgs.msg import CameraInfo
@@ -97,6 +99,14 @@ class EnclosingEllipse:
                 self.a[i]=np.max(distX)
                 self.b[i]=np.max(distY)
 
+class Waypoint:
+    def __init__(self):
+        self.waypoint = [0,0,0]
+        self.subWaypoint = rospy.Subscriber('/mybot/set_goal',Vector3,self.callback)
+
+    def callback(self,msg):
+        self.waypoint = [msg.x, msg.y, msg.z]
+
 def mpc_main():
     # initialize
     RosNodeName = 'mpc_test'
@@ -112,10 +122,12 @@ def mpc_main():
 
     fig=plt.figure()
     ax=plt.axes()
-    waypoint = [10,10,0]
+
+    WP = Waypoint()
     velocity_publisher = rospy.Publisher('/mybot/cmd_vel', Twist, queue_size=10)
 
     while not rospy.is_shutdown():
+        waypoint = WP.waypoint
         start=time.time()
         PoseData = state_listener.Pose
         TwistData = state_listener.Twist

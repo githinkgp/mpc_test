@@ -60,8 +60,10 @@ class doMPC:
         
 
     def getOptControl(self,waypoint,obstacles,pose,twist):
+        #weights
+        w = [60,60,1,1e5]
         # Create the objects for each module
-        model_1 = template_model.model(waypoint,obstacles,pose,twist)
+        model_1 = template_model.model(waypoint,obstacles,pose,twist,w)
         # Create an optimizer object based on the template and a model
         optimizer_1 = template_optimizer.optimizer(model_1)
         # Create an observer object based on the template and a model
@@ -74,36 +76,33 @@ class doMPC:
         # Set up the solvers
         configuration_1.setup_solver()
 
-
         """
         ----------------------------
         do-mpc: MPC loop
         ----------------------------
         """
-
-        
-
         x=pose
         Y_ref=waypoint
-        lam=1e6
+        lam=w[3]
         gamma=1
 
         #V=lam/((gamma+((xo[0]-x[0])**2)/(rx**2)+((xo[1]-x[1])**2)/(ry**2)))
         if len(obstacles.a):
-            xo=obstacles.centroid[0]
-            rx=obstacles.a[0]
-            ry=obstacles.b[0]
-            #print "xo",xo,"rx,ry",rx,ry
+            if obstacles.a[0]:
+                xo=obstacles.centroid[0]
+                rx=obstacles.a[0]
+                ry=obstacles.b[0]
+                #print "xo",xo,"rx,ry",rx,ry
 
-            R = [[cos(x[2]), -sin(x[2])],[sin(x[2]),cos(x[2])]]
+                R = [[cos(x[2]), -sin(x[2])],[sin(x[2]),cos(x[2])]]
 
-            xo = np.matmul(R,xo)
-            
-            phi = atan(obstacles.m[0])
-            V=lam/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
-            print "cost", V
+                xo = np.matmul(R,xo) + pose[0:2]
+                
+                phi = atan(obstacles.m[0])
+                V=lam/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
+                print "cost", V
 
-        print "x cost:",10*(x[0]-Y_ref[0])**2,"y cost:",10*(x[1]-Y_ref[1])**2,"theta cost:", (x[2]-Y_ref[2])**2
+        print "x cost:",w[0]*(x[0]-Y_ref[0])**2,"y cost:",w[1]*(x[1]-Y_ref[1])**2,"theta cost:", w[2]*(x[2]-Y_ref[2])**2
         #a1=ax.scatter(x[0],x[1])
         #a2=ax.arrow(x[0],x[1],3*math.cos(x[2]),3*math.sin(x[2]), head_width=0.08, head_length=0.00002)
         #plt.pause(0.1)

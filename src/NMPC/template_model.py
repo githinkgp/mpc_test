@@ -25,7 +25,7 @@ from casadi import *
 import numpy as NP
 import core_do_mpc
 #import math
-def model(waypoint, obstacles,pose,twist):
+def model(waypoint, obstacles,pose,twist,wt):
 
     """
     --------------------------------------------------------------------------
@@ -161,26 +161,31 @@ def model(waypoint, obstacles,pose,twist):
     #lterm =  1e4*((C_b - 0.9)**2 + (C_a - 1.1)**2)
     #lterm = 10*(x-Y_ref[0])**2+10*(y-Y_ref[1])**2+(theta-Y_ref[2])**2 + (lam)*exp(-(gamma+((xo[0]-x)**2)/(rx**2)+((xo[1]-y)**2)/(ry**2)))
     if len(obstacles.a):
-        rx=obstacles.a[0]
-        ry=obstacles.b[0]
-        phi = atan(obstacles.m[0])
-        xo=obstacles.centroid[0]
-        lam=1e6
-        gamma=1
+        if obstacles.a[0]:
+            rx=obstacles.a[0]
+            ry=obstacles.b[0]
+            phi = atan(obstacles.m[0])
+            xo=obstacles.centroid[0]
+            lam=wt[3]
+            gamma=1
 
-        R = [[cos(theta_0), -sin(theta_0)],[sin(theta_0),cos(theta_0)]]
+            R = [[cos(theta_0), -sin(theta_0)],[sin(theta_0),cos(theta_0)]]
 
-        xo = np.matmul(R,xo)
-        print "obs position",xo
+            xo = np.matmul(R,xo) + pose[0:2]
+            print "obs position",xo
 
-        lterm = 10*(x-Y_ref[0])**2 + \
-            10*(y-Y_ref[1])**2 + \
-            (theta-Y_ref[2])**2 + \
-            (lam)/((gamma+(( (xo[0]-x)*cos(phi) + (xo[1]-y)*sin(phi) )**2)/(rx**2) + (( (xo[1]-x)*sin(phi) - (xo[1]-y)*cos(phi) )**2)/(ry**2) ))
+            lterm = wt[0]*(x-Y_ref[0])**2 + \
+                wt[1]*(y-Y_ref[1])**2 + \
+                wt[2]*(theta-Y_ref[2])**2 + \
+                (lam)/((gamma+(( (xo[0]-x)*cos(phi) + (xo[1]-y)*sin(phi) )**2)/(rx**2) + (( (xo[0]-x)*sin(phi) - (xo[1]-y)*cos(phi) )**2)/(ry**2) ))
+        else:
+            lterm = wt[0]*(x-Y_ref[0])**2 + \
+                    wt[1]*(y-Y_ref[1])**2 + \
+                    wt[2]*(theta-Y_ref[2])**2
     else:
-        lterm = 10*(x-Y_ref[0])**2 + \
-            10*(y-Y_ref[1])**2 + \
-            (theta-Y_ref[2])**2
+        lterm = wt[0]*(x-Y_ref[0])**2 + \
+                wt[1]*(y-Y_ref[1])**2 + \
+                wt[2]*(theta-Y_ref[2])**2
             
     #lterm =  - C_b
     # Mayer term
