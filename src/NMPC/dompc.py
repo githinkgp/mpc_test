@@ -88,19 +88,25 @@ class doMPC:
 
         #V=lam/((gamma+((xo[0]-x[0])**2)/(rx**2)+((xo[1]-x[1])**2)/(ry**2)))
         if len(obstacles.a):
-            if obstacles.a[0]:
-                xo=obstacles.centroid[0]
-                rx=obstacles.a[0]
-                ry=obstacles.b[0]
-                #print "xo",xo,"rx,ry",rx,ry
+            V = 0 
+            for i in xrange(len(obstacles.a)):
+                if obstacles.a[i]:
+                    rx=obstacles.a[i]
+                    ry=obstacles.b[i]
+                    phi = atan(obstacles.m[i])
+                    xo=obstacles.centroid[i]
+                    
 
-                R = [[cos(x[2]), -sin(x[2])],[sin(x[2]),cos(x[2])]]
+                    R = [[cos(x[2]), -sin(x[2])],[sin(x[2]),cos(x[2])]]
 
-                xo = np.matmul(R,xo) + pose[0:2]
-                
-                phi = atan(obstacles.m[0])
-                V=lam/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
-                print "cost", V
+                    xo = np.matmul(R,xo) + pose[0:2]
+
+                    V = V + (lam)/((gamma+(( (xo[0]-x[0])*cos(phi) + (xo[1]-x[1])*sin(phi) )**2)/(rx**2) + (( (xo[1]-x[0])*sin(phi) - (xo[1]-x[1])*cos(phi) )**2)/(ry**2) ))
+
+                    
+                    print "cost",i, V
+
+            print "total cost", V
 
         print "x cost:",w[0]*(x[0]-Y_ref[0])**2,"y cost:",w[1]*(x[1]-Y_ref[1])**2,"theta cost:", w[2]*(x[2]-Y_ref[2])**2
         #a1=ax.scatter(x[0],x[1])

@@ -11,6 +11,7 @@ class LidarListener:
         self.topic = topic
         self.tStamp = 0.0
         self.RangeData = []
+        self.InfData = []
 
         # subscriber to the RPLIDAR
         print 'initializing RPLIDAR subscribers...'
@@ -38,7 +39,7 @@ class LidarListener:
             intensity = msg.intensities[i]
             # if there is valid beam reflection
             #if 1.0 < intensity < np.inf:
-            if distance < 30:
+            if distance < 5:
                 self.RangeData.append((-degree,distance))   # mirror reflection of the angle degree
     
     # end callback
