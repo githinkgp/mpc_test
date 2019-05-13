@@ -25,6 +25,8 @@ sys.path.insert(0,'NMPC')
 from dompc import *
 from dist import dist
 
+from ReachableSetGen import *
+
 fig=plt.figure()
 ax=plt.axes()
 
@@ -40,6 +42,8 @@ class clusters:
         clusterStart = 1
         self.clusterCount = 0
         prev_residual = 1
+
+        scan_angle_limit = 120
         
         if count:
             for i in xrange(count-1):
@@ -87,7 +91,7 @@ class clusters:
                 #Maximum cluster size is set to 100
                 if diff>=49:
                     self.clusterIdx[self.clusterCount].append(i)
-                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <150 and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <150:
+                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <scan_angle_limit and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <scan_angle_limit:
                         self.clusterIdx.pop(self.clusterCount)
                         clusterStart = 1
                     else:
@@ -97,7 +101,7 @@ class clusters:
                 #If distance between two consecutive data points is greater than 50cm then start a new cluster
                 elif dist >0.5:
                     self.clusterIdx[self.clusterCount].append(i)
-                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <150 and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <150:
+                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <scan_angle_limit and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <scan_angle_limit:
                         self.clusterIdx.pop(self.clusterCount)
                         clusterStart = 1
                     else:
@@ -109,7 +113,7 @@ class clusters:
                     #print rangeData[self.clusterIdx[self.clusterCount][0]][0] , rangeData[i+1][0]
                     self.clusterIdx[self.clusterCount].append(i+1)
 
-                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <150 and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <150:
+                    if fabs(rangeData[self.clusterIdx[self.clusterCount][0]][0]) <scan_angle_limit and fabs(rangeData[self.clusterIdx[self.clusterCount][1]][0]) <scan_angle_limit:
                         #print "remove", self.clusterCount
                         self.clusterIdx.pop(self.clusterCount)
                         dist=rangeData[i+1][1]
@@ -127,7 +131,7 @@ class clusters:
             #print self.clusterIdx
             #print "clusterXY",self.clusterXY
 class EnclosingEllipse:
-    def __init__(self,cluster):
+    def __init__(self,cluster,obsData,DobsDetect,lvls,PoseData):
         clusterXY = cluster.clusterXY
         clusterIdx = cluster.clusterIdx
         #length = len(clusterIdx)
@@ -142,9 +146,45 @@ class EnclosingEllipse:
                 hull = ConvexHull(icluster)
                 #plot only the valid clusters i.e. the onces within the 60 deg FOVr
                 #plt.scatter(icluster[:,0],icluster[:,1])
+
                 CvxHull =icluster[hull.vertices,:]
                 self.centroid[i][:] = [np.average(CvxHull[:,0]), np.average(CvxHull[:,1])]
-                
+                #print "centroid", self.centroid
+
+                if DobsDetect:
+                    print "obsData", obsData
+                    t = -(obsData[2] - PoseData[2])
+
+                    if t < -pi:
+                        t=t+2*pi
+                    elif t >pi:
+                        t=t-2*pi
+
+                    if t <0:
+                        t=t+2*pi
+
+                    print "obs", obsData[2], "bot", PoseData[2], "rel heading", t
+                    X,Y = lvls.CalculateLevelSet(t)                
+                    l = len(X)
+                    X=np.zeros((1,l),dtype=np.float)+X
+                    Y=np.zeros((1,l),dtype=np.float)+Y
+                    x=np.ones((1,l),dtype=np.float) * self.centroid[i][0]
+                    y=np.ones((1,l),dtype=np.float) * self.centroid[i][1]
+
+                    xy = np.concatenate((x,y),axis=0)
+                    
+                    XY = np.concatenate((X,Y),axis=0)
+                    R = [[cos(t), -sin(t)],[sin(t),cos(t)]]
+                    XY = np.matmul(R,XY)
+
+                    XY = XY + xy
+                    XY = np.transpose(XY)
+                    
+                    Obshull = ConvexHull(XY)
+                    ObsCvxHull =XY[Obshull.vertices,:]
+                    ax.plot(XY[Obshull.vertices,0], XY[Obshull.vertices,1], 'r--', lw=2)
+                    
+                    ax.scatter(XY[:,0],XY[:,1])
                 #plt.plot(icluster[hull.vertices,0], icluster[hull.vertices,1], 'r--', lw=2)
                 cent_temp=np.ones((len(CvxHull),2),dtype=np.float)
                 cent_temp[:,0] =self.centroid[i][0]*cent_temp[:,0]
@@ -164,6 +204,10 @@ class EnclosingEllipse:
 
                 self.a[i]=np.max(distX)
                 self.b[i]=np.max(distY)
+
+                
+
+
 
 class Waypoint:
     def __init__(self):
@@ -186,7 +230,7 @@ def mpc_main():
     rate_init = rospy.Rate(10.0)
     rate_init.sleep()
 
-    
+    lvls = LvlSetGenerator("low")
 
     WP = Waypoint()
     velocity_publisher = rospy.Publisher('/mybot/cmd_vel', Twist, queue_size=10)
@@ -194,6 +238,9 @@ def mpc_main():
     while not rospy.is_shutdown():
         waypoint = WP.waypoint
         start=time.time()
+        DobsDetect = state_listener.detectDObs
+        ObsPoseData = state_listener.ObsPose
+        
         PoseData = state_listener.Pose
         TwistData = state_listener.Twist
         rangeData = lidar_listener.RangeData        
@@ -216,11 +263,17 @@ def mpc_main():
         xo = np.matmul(R,np.transpose(cluster.clusterXY)) + XY
         test = np.matmul(R,np.transpose(cluster.clusterXY))
         #print np.transpose(np.matmul(R,np.transpose(cluster.clusterXY)))
+        
+        
         ax.scatter(cluster.clusterXY[:,0], cluster.clusterXY[:,1])
         ax2.scatter(test[0,:],test[1,:])
         #ax2.scatter(xo[0,:], xo[1,:])
+        
 
-        elliHull = EnclosingEllipse(cluster)
+        elliHull = EnclosingEllipse(cluster,ObsPoseData,DobsDetect,lvls,PoseData)
+        
+        
+        #ax.scatter(X,Y)
         #print dist(PoseData[0:2], waypoint)
         if dist(PoseData[0:2], waypoint)>0.2:
             U = MPC.getOptControl(waypoint,elliHull,PoseData,TwistData)
@@ -241,17 +294,23 @@ def mpc_main():
             ax.add_artist(elli)
         #plt.plot([0,-c/m],[c,0])
         #plt.plot(elliHull.centroid[0],elliHull.centroid[1],'ro')
+        
+        #time.sleep(0.4)
+        
         ax.grid()
-        ax.axis([0,5,-5,5])
+        ax.axis([-5,5,-5,5])
+        ax.set_title('Obstacle position w.r.t to robot')
         ax2.grid()
         ax2.axis([-10,10,-10,10])
+        ax2.set_title("Global map")
         plt.pause(0.01)
     
-        #plt.draw()
-        #input("Press Enter to exit do-mpc...")
+        plt.draw()
+        
         ax.cla()
         ax2.cla()
-    #plt.cla()
+        
+
         
         
         

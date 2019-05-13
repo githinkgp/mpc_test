@@ -61,7 +61,7 @@ class doMPC:
 
     def getOptControl(self,waypoint,obstacles,pose,twist):
         #weights
-        w = [60,60,1,1e5]
+        w = [60,60,1,5e4]
         # Create the objects for each module
         model_1 = template_model.model(waypoint,obstacles,pose,twist,w)
         # Create an optimizer object based on the template and a model
@@ -85,7 +85,7 @@ class doMPC:
         Y_ref=waypoint
         lam=w[3]
         gamma=1
-
+        print "obstacles", len(obstacles.a)
         #V=lam/((gamma+((xo[0]-x[0])**2)/(rx**2)+((xo[1]-x[1])**2)/(ry**2)))
         if len(obstacles.a):
             V = 0 
